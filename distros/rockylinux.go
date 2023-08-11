@@ -1,13 +1,12 @@
 package distros
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 
+	"github.com/antandros/venus/lib"
 	"github.com/antandros/venus/models"
 )
 
@@ -29,16 +28,11 @@ func (rck *RockyLinux) BaseURL() string {
 	return "https://download.rockylinux.org/pub/rocky/"
 }
 func (rck *RockyLinux) FetchFolder(uri string, folder bool) []string {
-	fmt.Println("Fetch folder", uri)
-	resp, err := http.Get(uri)
+
+	respData, err := lib.GetHttpString(uri)
 	if err != nil {
 		panic(err)
 	}
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-	respData := string(respBody)
 	hrefs := strings.Split(respData, "<a href")
 	var files []string
 	for _, href := range hrefs[1:] {
@@ -69,7 +63,7 @@ func (rck *RockyLinux) Fetch() {
 		enVersion := path.Base(file)
 		metaUri, _ := url.JoinPath(file, "/images/")
 
-		_, err := http.Get(metaUri)
+		_, err := http.Head(metaUri)
 		if err != nil {
 			continue
 		}

@@ -1,9 +1,6 @@
 package distros
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/antandros/venus/lib"
@@ -27,20 +24,15 @@ func (ub *Ubuntu) Name() string {
 	return "Ubuntu"
 }
 func (ub *Ubuntu) Fetch() {
-	resp, err := http.Get("https://cloud-images.ubuntu.com/daily/streams/v1/com.ubuntu.cloud:daily:download.json")
+
+	var data interface{}
+	data, err := lib.GetHttpJson("https://cloud-images.ubuntu.com/daily/streams/v1/com.ubuntu.cloud:daily:download.json", data)
+
 	if err != nil {
 		panic(err)
 	}
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-	var data map[string]interface{}
-	err = json.Unmarshal(respBody, &data)
-	if err != nil {
-		panic(err)
-	}
-	products := lib.TMI(data["products"])
+	dataItem := lib.TMI(data)
+	products := lib.TMI(dataItem["products"])
 	for _, item := range products {
 		version := lib.TMI(item)
 		versions := lib.TMI(version["versions"])

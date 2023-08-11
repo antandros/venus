@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -108,9 +106,11 @@ func (fl *File) GetFileChechSum(path string, sumType string) string {
 	return baseCsum
 }
 func (fl *File) ControlChechsum(path string, size int64, duration time.Duration) {
+	var sumType string
+	var retrivedSum string
 	if fl.CHECKSUM != "" {
 		if strings.EqualFold(fl.CHECKSUM[:4], "http") {
-			resp, err := http.Get(fl.CHECKSUM)
+			data, err := lib.GetHttpString(fl.CHECKSUM)
 			if err != nil {
 				if fl.config.ErrorFunction != nil {
 					fl.config.ErrorFunction(path, errors.New("checksum file retrive error"))
@@ -118,16 +118,7 @@ func (fl *File) ControlChechsum(path string, size int64, duration time.Duration)
 				}
 				panic(err)
 			}
-			defer resp.Body.Close()
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				if fl.config.ErrorFunction != nil {
-					fl.config.ErrorFunction(path, errors.New("checksum file retrive error"))
-					return
-				}
-				panic(err)
-			}
-			lineData := strings.ReplaceAll(string(respBody), "\n\n", "\n")
+			lineData := strings.ReplaceAll(data, "\n\n", "\n")
 			lines := strings.Split(lineData, "\n")
 			for _, line := range lines {
 				if len(line) == 0 {
@@ -136,24 +127,33 @@ func (fl *File) ControlChechsum(path string, size int64, duration time.Duration)
 				if !strings.EqualFold(line[:1], "#") {
 					lineData := strings.Split(line, "=")
 					params := strings.Split(lineData[0], " ")
-					sumType := strings.ToLower(params[0])
-					retrivedSum := strings.Trim(lineData[1], " ")
-					fileSum := fl.GetFileChechSum(path, sumType)
-					if retrivedSum != fileSum {
-						if fl.config.ErrorFunction != nil {
-							fl.config.ErrorFunction(path, errors.New("file checksum error"))
-							return
-						}
-						panic(errors.New("file checksum error"))
-					} else {
-						if fl.config.DoneFunction != nil {
-							fl.config.DoneFunction(path, size, duration)
-						}
-						continue
-					}
+					sumType = strings.ToLower(params[0])
+					retrivedSum = strings.Trim(lineData[1], " ")
+
 				}
 			}
+		} else {
+			if fl.config.ErrorFunction != nil {
+				fl.config.ErrorFunction(path, errors.New("unknow checksum type"))
+				return
+			}
+			panic(errors.New("unknow checksum type"))
 		}
+
+	}
+
+	fileSum := fl.GetFileChechSum(path, sumType)
+	if retrivedSum != fileSum {
+		if fl.config.ErrorFunction != nil {
+			fl.config.ErrorFunction(path, errors.New("file checksum error"))
+			return
+		}
+		panic(errors.New("file checksum error"))
+	} else {
+		if fl.config.DoneFunction != nil {
+			fl.config.DoneFunction(path, size, duration)
+		}
+
 	}
 }
 func (fl *File) Download() error {
