@@ -1,6 +1,7 @@
 package distros
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/antandros/venus/lib"
 	"github.com/antandros/venus/models"
+	"github.com/antandros/venus/models/archtypes"
 	"github.com/codingsince1985/checksum"
 )
 
@@ -90,6 +92,11 @@ func (fl *File) GetFileChechSum(path string, sumType string) string {
 	case "sha1":
 		sha1, _ := checksum.SHA1sum(path)
 		baseCsum = sha1
+	case "sha512":
+		sha512, err := lib.SHA512sum(path)
+		fmt.Println(sha512)
+		fmt.Println(err)
+		baseCsum = sha512
 	case "sha256":
 		sha256, _ := checksum.SHA256sum(path)
 		baseCsum = sha256
@@ -108,7 +115,20 @@ func (fl *File) GetFileChechSum(path string, sumType string) string {
 func (fl *File) ControlChechsum(path string, size int64, duration time.Duration) {
 	var sumType string
 	var retrivedSum string
-	if fl.CHECKSUM != "" {
+	if len(fl.SHA) > 0 {
+		shaData := strings.Split(fl.SHA, ":")
+		if len(shaData) > 1 {
+			sumType = shaData[0]
+			retrivedSum = shaData[1]
+		} else {
+			sumType = "sha256"
+			retrivedSum = fl.SHA
+		}
+
+	} else if len(fl.MD5) > 0 {
+		sumType = "md5"
+		retrivedSum = fl.SHA
+	} else if len(fl.CHECKSUM) > 0 {
 		if strings.EqualFold(fl.CHECKSUM[:4], "http") {
 			data, err := lib.GetHttpString(fl.CHECKSUM)
 			if err != nil {
@@ -143,6 +163,22 @@ func (fl *File) ControlChechsum(path string, size int64, duration time.Duration)
 	}
 
 	fileSum := fl.GetFileChechSum(path, sumType)
+	fmt.Println("T:", sumType)
+	fmt.Println("R:", retrivedSum)
+	fmt.Println(`F:`, fileSum)
+	fmt.Println(`L:`, len(fileSum))
+	if len(retrivedSum) != len(fileSum) {
+		sEnc, err := base64.URLEncoding.DecodeString(retrivedSum)
+		fmt.Println(err)
+		if err == nil {
+			newSum := string(sEnc)
+			fmt.Println(newSum)
+			if len(newSum) == len(fileSum) {
+				retrivedSum = newSum
+			}
+		}
+
+	}
 	if retrivedSum != fileSum {
 		if fl.config.ErrorFunction != nil {
 			fl.config.ErrorFunction(path, errors.New("file checksum error"))
@@ -164,7 +200,7 @@ func (fl *File) Download() error {
 	}
 	fileName := path.Base(uri)
 
-	fileFolder := path.Join(fl.config.DownloadFolder, "/", fl.distro, "/", fl.Arch, "/", fl.Version, "/")
+	fileFolder := path.Join(fl.config.DownloadFolder, "/", fl.distro, "/", string(fl.Arch), "/", fl.Version, "/")
 	filePath := path.Join(fileFolder, fileName)
 	stat, err := os.Stat(filePath)
 	if err == nil {
@@ -202,13 +238,13 @@ func (fl *File) Wait() {
 		fl.downloader.Wait()
 	}
 }
-func (d *Distros) Find(os string, arch string, version string, fileType string) []*File {
+func (d *Distros) Find(os string, arch archtypes.Arch, version string, fileType string) []*File {
 	itemFound := d.GetDistro(os)
 	if itemFound != nil {
 		item := *itemFound
 		for _, verItem := range item.GetVersions() {
-			if strings.EqualFold(verItem.Arch, arch) {
-				ok := strings.EqualFold(verItem.Release, version) || strings.EqualFold(verItem.ReleaseCodename, version) || strings.EqualFold(verItem.ReleaseTitle, version) || strings.EqualFold(verItem.Version, version)
+			if verItem.Arch == arch {
+				ok := strings.EqualFold(verItem.Release, version) || strings.EqualFold(verItem.ReleaseTitle, version) || strings.EqualFold(verItem.ReleaseCodename, version) || strings.EqualFold(verItem.ReleaseTitle, version) || strings.EqualFold(verItem.Version, version)
 				if ok {
 					files := verItem.Files
 

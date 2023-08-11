@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/antandros/venus/distros"
+	"github.com/antandros/venus/models/archtypes"
 )
 
 func percentPrint(percent float64, received int64, total int64) {
@@ -33,7 +34,7 @@ func main() {
 		CacheDuration:           time.Duration(24 * time.Hour),
 	}
 	distro := distros.NewDistros(conf)
-	files := distro.Find("rocky", "x86_64", "9", "qcow2")
+	files := distro.Find("ubuntu", archtypes.Amd64, "22.04", "disk-kvm.img")
 	for _, file := range files {
 		file.Download()
 		file.Wait()

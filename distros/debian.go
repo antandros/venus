@@ -10,6 +10,7 @@ import (
 
 	"github.com/antandros/venus/lib"
 	"github.com/antandros/venus/models"
+	"github.com/antandros/venus/models/archtypes"
 	"github.com/jlaffaye/ftp"
 )
 
@@ -130,9 +131,12 @@ func (deb *Debian) Fetch() {
 			}
 			if strings.EqualFold(bitem["kind"].(string), "build") {
 				info := lib.TMI(lib.TMI(bitem["data"])["info"])
-
+				arch, err := archtypes.ConvertType(info["arch"].(string))
+				if err != nil {
+					panic(err)
+				}
 				ver = models.Image{
-					Arch:            info["arch"].(string),
+					Arch:            arch,
 					Os:              "debian",
 					Release:         info["release"].(string),
 					ReleaseCodename: info["release_id"].(string),

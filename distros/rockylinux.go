@@ -8,6 +8,7 @@ import (
 
 	"github.com/antandros/venus/lib"
 	"github.com/antandros/venus/models"
+	"github.com/antandros/venus/models/archtypes"
 )
 
 type RockyLinux struct {
@@ -49,7 +50,7 @@ func (rck *RockyLinux) FetchFolder(uri string, folder bool) []string {
 }
 func (rck *RockyLinux) FindImages(release string, releaseTitle string, version string, arch string, images []models.Image) *models.Image {
 	for _, image := range images {
-		if strings.EqualFold(image.Arch, arch) && strings.EqualFold(image.ReleaseTitle, releaseTitle) && strings.EqualFold(image.Release, release) && strings.EqualFold(image.Version, version) {
+		if strings.EqualFold(string(image.Arch), arch) && strings.EqualFold(image.ReleaseTitle, releaseTitle) && strings.EqualFold(image.Release, release) && strings.EqualFold(image.Version, version) {
 			return &image
 		}
 	}
@@ -132,6 +133,10 @@ func (rck *RockyLinux) Fetch() {
 				imageItem := rck.FindImages(release, releaseTitle, enVersion, arch, images)
 				if imageItem == nil {
 					imageFounded = false
+					arch, err := archtypes.ConvertType(arch)
+					if err != nil {
+						panic(err)
+					}
 					imageItem = &models.Image{
 						Arch:            arch,
 						Release:         release,

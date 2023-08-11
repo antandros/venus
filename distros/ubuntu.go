@@ -5,6 +5,7 @@ import (
 
 	"github.com/antandros/venus/lib"
 	"github.com/antandros/venus/models"
+	"github.com/antandros/venus/models/archtypes"
 )
 
 type Ubuntu struct {
@@ -67,8 +68,12 @@ func (ub *Ubuntu) Fetch() {
 				Size: file["size"].(float64),
 			})
 		}
+		arch, err := archtypes.ConvertType(version["arch"].(string))
+		if err != nil {
+			panic(err)
+		}
 		parsedVersion := models.Image{
-			Arch:            version["arch"].(string),
+			Arch:            arch,
 			Version:         version["version"].(string),
 			Supported:       version["supported"].(bool),
 			SupportEol:      oelTime,
